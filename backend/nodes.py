@@ -5,11 +5,9 @@ from typing import List, Optional, Dict
 import math
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from auth import get_current_user, Session  # використовуємо вже зроблену авторизацію
-
-from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api", tags=["nodes"])
 
@@ -21,7 +19,9 @@ class NodeSummary(BaseModel):
     region: str
     status: str  # Online / Warning / Offline
     updated_at: str
-
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    kind: Optional[str] = None
 
 class Telemetry(BaseModel):
     voltage: float
@@ -30,7 +30,6 @@ class Telemetry(BaseModel):
     temperature: float
     timestamp: str
 
-
 class NodeDetail(BaseModel):
     id: str
     name: str
@@ -38,6 +37,9 @@ class NodeDetail(BaseModel):
     status: str
     updated_at: str
     telemetry: Telemetry
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    kind: Optional[str] = None
 
 class NodeCreate(BaseModel):
     id: str = Field(..., description="Напр. N-04")
@@ -52,9 +54,9 @@ class NodeUpdate(BaseModel):
     
 # ---- In-memory data (MVP) ----
 NODES: Dict[str, Dict] = {
-    "N-01": {"id": "N-01", "name": "Substation-01", "region": "Central", "status": "Online"},
-    "N-02": {"id": "N-02", "name": "Substation-02", "region": "Central", "status": "Warning"},
-    "N-03": {"id": "N-03", "name": "Substation-03", "region": "North",   "status": "Offline"},
+    "N-01": {"id": "N-01", "name": "Substation-01", "region": "Lviv", "status": "Online", "lat": 49.8397, "lng": 24.0297, "kind": "Substation"},
+    "N-02": {"id": "N-02", "name": "Substation-02", "region": "Kyiv", "status": "Warning", "lat": 50.4501, "lng": 30.5234, "kind": "Substation"},
+    "N-03": {"id": "N-03", "name": "Substation-03", "region": "Kharkiv", "status": "Offline", "lat": 49.9935, "lng": 36.2304, "kind": "Substation"},
 }
 
 
@@ -109,6 +111,9 @@ def get_nodes(
             region=n["region"],
             status=n["status"],
             updated_at=now,
+            lat=n.get("lat"),
+            lng=n.get("lng"),
+            kind=n.get("kind"),
         )
         for n in items
     ]
@@ -131,6 +136,9 @@ def get_node_detail(
         status=n["status"],
         updated_at=now,
         telemetry=_telemetry_for(node_id),
+        lat=n.get("lat"),
+        lng=n.get("lng"),
+        kind=n.get("kind"),
     )
     
 @router.post("/nodes", response_model=NodeSummary)
@@ -140,6 +148,7 @@ def create_node(payload: NodeCreate, user: Session = Depends(get_current_user)):
     if payload.id in NODES:
         raise HTTPException(status_code=409, detail="Node already exists")
 
+    # Створюємо без lat/lng/kind, щоб не ламати поточну логіку створення
     NODES[payload.id] = {
         "id": payload.id,
         "name": payload.name,
@@ -154,6 +163,7 @@ def create_node(payload: NodeCreate, user: Session = Depends(get_current_user)):
         region=payload.region,
         status=payload.status,
         updated_at=now,
+        # За замовчуванням залишаться None
     )
 
 
@@ -179,6 +189,9 @@ def update_node(node_id: str, payload: NodeUpdate, user: Session = Depends(get_c
         region=n["region"],
         status=n["status"],
         updated_at=now,
+        lat=n.get("lat"),
+        lng=n.get("lng"),
+        kind=n.get("kind"),
     )
 
 

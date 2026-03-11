@@ -43,6 +43,9 @@ export const api = {
 
   getNode: (id) => request(`/api/nodes/${encodeURIComponent(id)}`),
 
+  // --- ДОДАНО МЕТОД getFlows ---
+  getFlows: () => request("/api/flows"),
+
   getEvents: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
     return request(`/api/events${qs ? `?${qs}` : ""}`);      
@@ -68,4 +71,3 @@ export const api = {
   ackEvent: (id) =>
     request(`/api/events/${encodeURIComponent(id)}/ack`, { method: "POST" }),
 };
-

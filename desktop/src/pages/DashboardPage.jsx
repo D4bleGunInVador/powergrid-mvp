@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { useNavigate } from "react-router-dom";
+import NetworkMap from "../components/NetworkMap";
 
 function statusColor(status) {
   if (status === "Online") return "#2e7d32";
@@ -11,23 +12,41 @@ function statusColor(status) {
 export default function DashboardPage({ me }) {
   const [nodes, setNodes] = useState([]);
   const [events, setEvents] = useState([]);
+  const [flows, setFlows] = useState([]);
+  const [mapLoading, setMapLoading] = useState(true);
+  const [selectedRegions, setSelectedRegions] = useState([]);
+  
   const [error, setError] = useState("");
   const nav = useNavigate();
 
   async function loadAll() {
     setError("");
+    setMapLoading(true);
     try {
-      const [n, e] = await Promise.all([api.getNodes(), api.getEvents()]);
+      const [n, e, f] = await Promise.all([
+        api.getNodes(), 
+        api.getEvents(), 
+        api.getFlows()
+      ]);
       setNodes(n);
       setEvents(e);
+      setFlows(f);
     } catch {
       setError("Не вдалося завантажити дані Dashboard.");
+    } finally {
+      setMapLoading(false);
     }
   }
 
   useEffect(() => {
     loadAll();
   }, []);
+
+  function toggleRegion(name) {
+    setSelectedRegions(prev =>
+      prev.includes(name) ? prev.filter(x => x !== name) : [...prev, name]
+    );
+  }
 
   // “Активні інциденти” з точки зору подій (Warning/Critical зі статусом New)
   const activeIncidents = useMemo(() => {
@@ -125,10 +144,14 @@ export default function DashboardPage({ me }) {
       </div>
 
       {/* Map zone */}
-      <div className="wf-zone">
-        <div className="wf-label">
-          Інтерактивна карта мережі (RT-Моніторинг)
-        </div>
+      <div className="wf-zone" style={{ padding: 0 }}>
+        <NetworkMap
+          nodes={nodes}
+          flows={flows}
+          selectedRegions={selectedRegions}
+          onToggleRegion={toggleRegion}
+          loading={mapLoading}
+        />
       </div>
 
       {/* Alerts */}
